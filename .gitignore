@@ -1,1 +1,5 @@
 models/
+latent_maps/
+audio/
+.venv/
+directions/

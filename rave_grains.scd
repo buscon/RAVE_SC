@@ -593,7 +593,7 @@ s.waitForBoot {
 				~grSrc = m.value;
 				~grStop.value;
 				~grBuild.value;
-				if(wasPlaying or: { ~grSrc == 0 }) { ~grStart.value };
+				if(wasPlaying or: { ~grSrc == 0 }) { ~grStart.value; ~grPlayBtn.value = 0 };
 		});
 		~grWalkLabel = StaticText().string_("model only: size of the latent wander 0.5");
 		~grWalkSl = Slider().orientation_(\horizontal).value_(~grWalk / 1.5).action_({ |sl|
@@ -672,8 +672,17 @@ s.waitForBoot {
 		~grSweepBox = NumberBox().value_(20).clipLo_(2).clipHi_(120).decimals_(0);
 		~grSweepBtn = Button().states_([["sweep 0-1-0"], ["stop sweep"]])
 			.action_({ |b| if(b.value == 1) { ~grSweep.(~grSweepBox.value) } { ~grSweep.(nil) } });
-		~grPlayBtn = Button().states_([["stop"], ["play"]])
-			.action_({ |b| if(b.value == 0) { ~grStart.value } { ~grStop.value } });
+		// the label shows the current state; a click switches it
+		~grPlayBtn = Button().states_([["playing (click to stop)"], ["stopped (click to play)"]])
+			.action_({ |b|
+				if(b.value == 0) {
+					Ndef(\grOut).play;       // the output stage (also carries the sources "recording" and "model only")
+					~grStart.value;           // the grains (only needed for the source "grain cloud")
+				} {
+					~grStop.value;
+					Ndef(\grOut).stop(0.3);
+				};
+			});
 
 		~grUv = UserView().background_(Color.grey(0.12)).minWidth_(560).minHeight_(600)
 			.drawFunc_({ ~grDraw.value });
