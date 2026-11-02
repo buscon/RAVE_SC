@@ -54,6 +54,8 @@ s.waitForBoot {
 	~grAvoid = 1;           // 1 = do not use the harshest source regions
 	~grDirMode = 0;         // 0 = computed direction (louder and brighter), 1 = random
 	~grComp = 1;            // 1 = the model output is brought to the level of the grains
+	~grLpf = 1;             // 1 = the low-pass is on (its cutoff follows the value), 0 = off
+	~grAmpFollow = 1;       // 1 = the level follows the value, 0 = fixed level
 	~grSrc = 0;             // RAVE source: 0 = the grain cloud, 1 = the recording itself, 2 = model only (no input)
 	~grWalk = 0.5;          // model only: size of the latent wander (in spreads of the recording)
 	~grWalkRate = 0.3;      // model only: speed of the wander (Hz)
@@ -244,7 +246,7 @@ s.waitForBoot {
 		Ndef(\grOut).unset(\lmean);
 		Ndef(\grOut).unset(\lstd);
 		Ndef(\grOut, {
-			var cut = \cut.kr(8000, 0.1);
+			var cut = Select.kr(\lpf.kr(1), [20000, \cut.kr(8000, 0.1)]);   // lpf 0: the filter is wide open
 			var amp = \amp.kr(0.3, 0.1);
 			var v = \v.kr(0.5, 0.05);
 			var wet = \wet.kr(1);
@@ -305,7 +307,7 @@ s.waitForBoot {
 		});
 		if(name.notNil) { ~grSetDir.value; Ndef(\grOut).set(\shift, ~grShift, \comp, ~grComp) };
 		if(src == 2) { ~grSetStats.value };
-		Ndef(\grOut).set(\tame, ~grTame, \smooth, ~grSmooth, \walk, ~grWalk, \walkRate, ~grWalkRate);
+		Ndef(\grOut).set(\tame, ~grTame, \smooth, ~grSmooth, \walk, ~grWalk, \walkRate, ~grWalkRate, \lpf, ~grLpf);
 		Ndef(\grOut).play;
 		~grSet.(~grV);
 	};
@@ -389,7 +391,7 @@ s.waitForBoot {
 		var p;
 		~grV = val.clip(0, 1);
 		p = ~grParams.(~grMode, ~grV);
-		Ndef(\grOut).set(\cut, p[\cut], \amp, (p[\db] + ~grMakeup[~grMode]).dbamp * ~grVol, \v, ~grV,
+		Ndef(\grOut).set(\cut, p[\cut], \amp, ((if(~grAmpFollow == 1) { p[\db] } { -8 }) + ~grMakeup[~grMode]).dbamp * ~grVol, \v, ~grV,
 			\hitRate, p[\rate], \hitLen, p[\glen], \hitAtk, 0.004 + (~grSoft * 0.03));
 		{
 			if(~grValSl.notNil) { ~grValSl.value = ~grV };
@@ -639,6 +641,10 @@ s.waitForBoot {
 			~grCeilLabel.string = "brightest low-pass cutoff: " ++ ~grCeil.round(10).asInteger.asString ++ " Hz";
 			~grSet.(~grV);
 		});
+		~grLpfBtn = Button().states_([["low-pass: on"], ["low-pass: off"]])
+			.action_({ |b| ~grLpf = if(b.value == 0) { 1 } { 0 }; Ndef(\grOut).set(\lpf, ~grLpf) });
+		~grAmpBtn = Button().states_([["level follows the value: on"], ["level follows the value: off (fixed)"]])
+			.action_({ |b| ~grAmpFollow = if(b.value == 0) { 1 } { 0 }; ~grSet.(~grV) });
 		~grTameLabel = StaticText().string_("take the edge off the highs: 4 dB");
 		~grTameSl = Slider().orientation_(\horizontal).value_(~grTame / 12).action_({ |sl|
 			~grTame = sl.value * 12;
@@ -697,7 +703,7 @@ s.waitForBoot {
 			~grPlayBtn, ~grStatus, nil
 		), stretch: 1], [VLayout(
 			StaticText().string_("softer, less sharp"),
-			~grSoftLabel, ~grSoftSl, ~grCeilLabel, ~grCeilSl, ~grTameLabel, ~grTameSl, ~grAvoidBtn,
+			~grSoftLabel, ~grSoftSl, ~grLpfBtn, ~grAmpBtn, ~grCeilLabel, ~grCeilSl, ~grTameLabel, ~grTameSl, ~grAvoidBtn,
 			StaticText().string_("RAVE model"), ~grModelPop, ~grSrcPop, ~grWalkLabel, ~grWalkSl, ~grWalkRateLabel, ~grWalkRateSl,
 			StaticText().string_("RAVE mix (0 = grains only, 1 = only the model)"), ~grWetSl,
 			StaticText().string_("input gain to the model"), ~grInSl,

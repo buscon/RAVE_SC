@@ -4,3 +4,4 @@ latent_map/
 audio/
 .venv/
 directions/
+.DS_Store
